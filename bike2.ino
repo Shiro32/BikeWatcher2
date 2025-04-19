@@ -38,7 +38,10 @@
 WiFiMulti wifi_multi;
 
 // システム動作モード
-SYSTEM_MODE system_mode;	// 初期化はsetupの中で
+DETECTION_STATUS detection_status;	// 初期化はsetupの中で
+
+// 通報方式
+REPORT_MODE report_mode;			// 初期化はsetupの中で
 
 // OLED関係
 OLED oled( OLED_WIDTH, OLED_HEIGHT, &Wire, OLED_RESET );
@@ -46,8 +49,6 @@ OLED oled( OLED_WIDTH, OLED_HEIGHT, &Wire, OLED_RESET );
 // 震動検知通知用（割り込みのvolatile変数）
 volatile bool vibration_detected = false;	// false:通常, true:検出
 int vibration_start = 0;					// 揺れの継続時間を測るため、揺れていなかった時代の最後のTick（秒）
-
-
 
 
 // -------------------------------------------------------------------------
@@ -64,13 +65,9 @@ void setup( void ) {
 	Talk( "? ima jyunbichuu desu", false );
 
 	// GPIOの設定
-	pinMode( kVibrationPin, INPUT_PULLUP );	// 振動センサー入力ピン設定（割り込みハンドラ登録）
-	pinMode( kPowerLedPin, OUTPUT );		// 動作中表示用LED制御ピン（底面の1LED）
 
-	// マトリクスLEDの初期化
-	InitMatrix88();
-	TextMatirx88( "Hi!" );
 
+	
 	// WiFi接続処理
 	wifi_multi.addAP( SSID1, PSWD1 );
 	wifi_multi.addAP( SSID2, PSWD2 );
@@ -89,7 +86,10 @@ void setup( void ) {
 	// 以前はSTANDBYから始めたけど手間だけかかる（スマホ操作が必要）
 	// いきなり監視始められるようにする
 	// ★鍵をかける前に始まってしまう問題はどうする？（タイマが必要）
-	system_mode = WAITING;
+	detection_status = WAITING;
+	report_mode = DIRECT_MODE;
+
+
 }
 
 
@@ -112,7 +112,7 @@ void loop( void ) {
 	server.handleClient();	// WEBアクセスへのレスポンス
 
 	// システム状態に応じて処理し、条件がそろえば次の状態に遷移
-	switch( system_mode ) {
+	switch( detection_status ) {
 
 		case STANDBY: // -- ブラウザでの接続待機中
 			// この中では何もせず、ブラウザからの指示でRESUMEに遷移
@@ -139,13 +139,13 @@ void loop( void ) {
 
 			// 起動準備完了
 			if( WaitSec( &waiting_timer_s, kStartMonitorTimer_s ) ) {
-				system_mode = RESUME;
+				detection_status = RESUME;
 				Serial.println("MONITORING Start!" );
 			}
 			break;
 
 		case RESUME: // -- 起動直前。停止からの再開ポイント
-			system_mode = RUNNING;
+			detection_status = RUNNING;
 
 			Serial.println("MONITORING Start!" );
 
@@ -171,7 +171,7 @@ void loop( void ) {
 
 				// 一定時間以上揺れ続けたら、「震動」とみなす
 				if( SystemTickSec() - vibration_start >= kVibrationTimer_s ) {
-					system_mode = DETECTED;
+					detection_status = DETECTED;
 
 					// 警告音声
 					Talk( "shindouwo kenshutusimasita. nusu'nja dame'desuyo'.", true);

@@ -10,7 +10,11 @@
 // RUNNING	: システムの監視が始まっている状態
 // DETECTED	: 揺れを検知した状態。ブラウザで止めるまで永久
 // STOP		: 停止状態（どんな状態なのか・・・！？）
-typedef enum { WAITING, STANDBY, RESUME, RUNNING, DETECTED, STOP } SYSTEM_MODE;
+typedef enum { WAITING, STANDBY, RESUME, RUNNING, DETECTED, STOP } DETECTION_STATUS;
+
+// 通報方式
+typedef enum { DIRECT_MODE, WIFI_MODE } REPORT_MODE;
+
 
 // OLEDデバイス設定
 #define OLED_WIDTH		128		//解像度 128 x 64 で使用します。
