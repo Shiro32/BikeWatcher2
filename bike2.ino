@@ -33,15 +33,9 @@
 #include "bike2.h"
 #include "html.h"
 
-// 通信関係
-// TODO: WiFiはマルチSSIDにしておかなく必要あり
-WiFiMulti wifi_multi;
-
-// システム動作モード
-DETECTION_STATUS detection_status;	// 初期化はsetupの中で
-
-// 通報方式
-REPORT_MODE report_mode;			// 初期化はsetupの中で
+// 各種モード保持グローバル（初期化はsetupで）
+DETECTION_STATUS gDetectionStatus;	// 待機・検出などの全体モード
+COMM_MODE gCommMode;				// 通報モード（TW直接、WIFI）
 
 // OLED関係
 OLED oled( OLED_WIDTH, OLED_HEIGHT, &Wire, OLED_RESET );
@@ -59,25 +53,38 @@ void setup( void ) {
 
 	// シリアル通信関係
 	Serial.begin(115200);	// PCとのシリアル通信（いるのか？）
-	Serial2.begin(9600);	// 音声合成ICとのシリアル通信
-	delay( 1000 );
-	Serial.println("Welcome!!");
-	Talk( "? ima jyunbichuu desu", false );
+	Serial.println（”Welcome!!");
 
-	// GPIOの設定
+	// OLEDの初期化
+	if(!oled.begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS)) {
+		for(;;);
+	}
+	oled.clear();               //何か表示されている場合に備えて表示クリア
+	oled.setRotation(2);
+	oled.print( OLED_WIDTH/2, 0, ALIGN_CENTER, 2, "Welcome" );
+	oled.flush();
 
+	// WIFI接続処理
+	// WIFI関係
+	oled.print( 0, 20, ALIGN_LEFT, 1, "Checking Network..." );
+	oled.flush();
 
-	
-	// WiFi接続処理
-	wifi_multi.addAP( SSID1, PSWD1 );
-	wifi_multi.addAP( SSID2, PSWD2 );
-	wifi_multi.addAP( SSID3, PSWD3 );
-
-	CheckWifi();	// さっそくWifiに接続する
-	SetupOTA();	// ついでにOTA（On The Air設定）も稼働させる
+	SetupWiFi();	// WiFi接続（途中のモード変更でもできるように）
+	SetupOTA();		// On The Air処理用
 
 	// Webサーバー初期化
 	InitServer();
+
+	String ip;
+	ip = WiFi.localIP().toString();
+	ip = "IP:"+ip;
+	oled.print( 0, 30, 1, ip.c_str(), true );
+	oled.flush();
+
+	// バッテリー残量管理
+	SetupBatSOC();
+	gBatSOC = GetBatSoc();
+	SetupButtons();
 
 	// システムタイマ起動（100万マイクロ秒＝１秒）
 	TimerLib.setInterval_us( CountSystemTickSec, 1000000 );
@@ -86,10 +93,8 @@ void setup( void ) {
 	// 以前はSTANDBYから始めたけど手間だけかかる（スマホ操作が必要）
 	// いきなり監視始められるようにする
 	// ★鍵をかける前に始まってしまう問題はどうする？（タイマが必要）
-	detection_status = WAITING;
-	report_mode = DIRECT_MODE;
-
-
+	gDetectionStatus = WAITING;
+	gReportMode = DIRECT_MODE;
 }
 
 
@@ -112,7 +117,7 @@ void loop( void ) {
 	server.handleClient();	// WEBアクセスへのレスポンス
 
 	// システム状態に応じて処理し、条件がそろえば次の状態に遷移
-	switch( detection_status ) {
+	switch( gDetectionStatus ) {
 
 		case STANDBY: // -- ブラウザでの接続待機中
 			// この中では何もせず、ブラウザからの指示でRESUMEに遷移
@@ -139,13 +144,13 @@ void loop( void ) {
 
 			// 起動準備完了
 			if( WaitSec( &waiting_timer_s, kStartMonitorTimer_s ) ) {
-				detection_status = RESUME;
+				gDetectionStatus = RESUME;
 				Serial.println("MONITORING Start!" );
 			}
 			break;
 
 		case RESUME: // -- 起動直前。停止からの再開ポイント
-			detection_status = RUNNING;
+			gDetectionStatus = RUNNING;
 
 			Serial.println("MONITORING Start!" );
 
@@ -171,7 +176,7 @@ void loop( void ) {
 
 				// 一定時間以上揺れ続けたら、「震動」とみなす
 				if( SystemTickSec() - vibration_start >= kVibrationTimer_s ) {
-					detection_status = DETECTED;
+					gDetectionStatus = DETECTED;
 
 					// 警告音声
 					Talk( "shindouwo kenshutusimasita. nusu'nja dame'desuyo'.", true);
