@@ -1,37 +1,3 @@
-/*
-  bike.ino
-  目的：バイク盗難防止アラーム（ESP32用）
-  対象：ESP32（Expressifの元祖、ESP32 devkit）
-
-  履歴：
-  2022/10/16 初版稼働（WiFiの動的切替、音声発信など）
-
-  LEDの状態
-  ①welcome的なアイコン
-  ②wifi無しアイコン
-  ③wifi接続SSID表示
-  ④スタンバイ表示（バーグラフ）
-  ⑤通常アイコン（blink）
-  ⑥振動表示（お怒りアイコンblink）
-  ⑦振動表示（スクロール）
-
-  TODO:
-  ・振動センサの反応が過敏なのでタイマーなどで緩和したい
-
-*/
-
-// 依存ファイル
-#include <uTimerLib.h>
-#include <Wire.h>
-#include <WiFi.h>
-#include <WifiMulti.h>
-#include <WiFiClientSecure.h>
-#include <WebServer.h>
-#include <ArduinoOTA.h>
-#include "bike.h"
-#include "led.h"
-#include "html.h"
-
 // 通信関係
 // TODO: WiFiはマルチSSIDにしておかなく必要あり
 WiFiMulti wifi_multi;
@@ -234,6 +200,3 @@ bool WaitSec2( int sec ) {
 	}
 
 }
-
-
-
