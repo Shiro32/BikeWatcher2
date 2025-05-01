@@ -13,7 +13,7 @@
 typedef enum { WAITING, STANDBY, RESUME, RUNNING, DETECTED, STOP } DETECTION_STATUS;
 
 // 通報方式
-typedef enum { DIRECT_MODE, WIFI_MODE } REPORT_MODE;
+typedef enum { DIRECT_MODE, WIFI_MODE } COMM_MODE;
 
 
 // OLEDデバイス設定
