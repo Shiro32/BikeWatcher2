@@ -34,13 +34,8 @@
 #include "html.h"
 
 // 各種モード保持グローバル（初期化はsetupで）
-<<<<<<< HEAD
 SYSTEM_MODE gSystemMode;	// 待機・検出などの全体モード
 COMM_MODE gCommMode;		// 通報モード（DIRECT: 親機を持ち歩きtweliteで通知 / WIFI:親機をバイクに置いてWIFI通知）
-=======
-SYSTEM_STATUS gSystemStatus;	// 待機・検出などの全体モード
-COMM_MODE gCommMode;				// 通報モード（TW直接、WIFI）
->>>>>>> 59834382cb39196b72a409ddbe1507027258edf9
 
 // OLED関係
 OLED oled( OLED_WIDTH, OLED_HEIGHT, &Wire, OLED_RESET );
@@ -106,11 +101,7 @@ void setup( void ) {
 	// 以前はSTANDBYから始めたけど手間だけかかる（スマホ操作が必要）
 	// いきなり監視始められるようにする
 	// ★鍵をかける前に始まってしまう問題はどうする？（タイマが必要）
-<<<<<<< HEAD
 	gSystemMode = WAITING;
-=======
-	gSystemStatus = WAITING;
->>>>>>> 59834382cb39196b72a409ddbe1507027258edf9
 	gReportMode = DIRECT_MODE;
 }
 
@@ -134,11 +125,7 @@ void loop( void ) {
 	server.handleClient();	// WEBアクセスへのレスポンス
 
 	// システム状態に応じて処理し、条件がそろえば次の状態に遷移
-<<<<<<< HEAD
 	switch( gSystemMode ) {
-=======
-	switch( gSystemStatus ) {
->>>>>>> 59834382cb39196b72a409ddbe1507027258edf9
 
 		case STANDBY: // -- ブラウザでの接続待機中
 			// この中では何もせず、ブラウザからの指示でRESUMEに遷移
@@ -165,21 +152,13 @@ void loop( void ) {
 
 			// 起動準備完了
 			if( WaitSec( &waiting_timer_s, kStartMonitorTimer_s ) ) {
-<<<<<<< HEAD
 				gSystemMode = RESUME;
-=======
-				gSystemStatus = RESUME;
->>>>>>> 59834382cb39196b72a409ddbe1507027258edf9
 				Serial.println("MONITORING Start!" );
 			}
 			break;
 
 		case RESUME: // -- 起動直前。停止からの再開ポイント
-<<<<<<< HEAD
 			gSystemMode = RUNNING;
-=======
-			gSystemStatus = RUNNING;
->>>>>>> 59834382cb39196b72a409ddbe1507027258edf9
 
 			Serial.println("MONITORING Start!" );
 
@@ -205,11 +184,7 @@ void loop( void ) {
 
 				// 一定時間以上揺れ続けたら、「震動」とみなす
 				if( SystemTickSec() - vibration_start >= kVibrationTimer_s ) {
-<<<<<<< HEAD
 					gSystemMode = DETECTED;
-=======
-					gSystemStatus = DETECTED;
->>>>>>> 59834382cb39196b72a409ddbe1507027258edf9
 
 					// 警告音声
 					Talk( "shindouwo kenshutusimasita. nusu'nja dame'desuyo'.", true);
