@@ -1,5 +1,5 @@
 /*
-  bike.ino
+  bike2.ino
   目的：バイク盗難防止アラーム２号機（twelite）
   対象：XIAO ESP32C
 
@@ -34,8 +34,8 @@
 #include "html.h"
 
 // 各種モード保持グローバル（初期化はsetupで）
-DETECTION_STATUS gDetectionStatus;	// 待機・検出などの全体モード
-COMM_MODE gCommMode;				// 通報モード（TW直接、WIFI）
+SYSTEM_MODE gSystemMode;	// 待機・検出などの全体モード
+COMM_MODE gCommMode;		// 通報モード（DIRECT: 親機を持ち歩きtweliteで通知 / WIFI:親機をバイクに置いてWIFI通知）
 
 // OLED関係
 OLED oled( OLED_WIDTH, OLED_HEIGHT, &Wire, OLED_RESET );
@@ -45,15 +45,17 @@ volatile bool vibration_detected = false;	// false:通常, true:検出
 int vibration_start = 0;					// 揺れの継続時間を測るため、揺れていなかった時代の最後のTick（秒）
 
 
+float gBattSOC;								// バッテリー残量（電圧？）
+
 // -------------------------------------------------------------------------
 // 起動時の初期化関数
 // ESP32の起動時に１回だけ実行される
-// 音声（serial）、LED（I2C）、各種GPIO、割り込みハンドラの設定
+// OLED（I2C）、各種GPIO、割り込みハンドラの設定
 void setup( void ) {
 
 	// シリアル通信関係
 	Serial.begin(115200);	// PCとのシリアル通信（いるのか？）
-	Serial.println（”Welcome!!");
+	Serial.println（”Welcome to BikeWatcher2!!");
 
 	// OLEDの初期化
 	if(!oled.begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS)) {
@@ -84,16 +86,15 @@ void setup( void ) {
 	// バッテリー残量管理
 	SetupBatSOC();
 	gBatSOC = GetBatSoc();
-	SetupButtons();
 
-	// システムタイマ起動（100万マイクロ秒＝１秒）
-	TimerLib.setInterval_us( CountSystemTickSec, 1000000 );
+	// 操作用ボタン初期化
+	SetupButtons();
 
 	// 初期状態
 	// 以前はSTANDBYから始めたけど手間だけかかる（スマホ操作が必要）
 	// いきなり監視始められるようにする
 	// ★鍵をかける前に始まってしまう問題はどうする？（タイマが必要）
-	gDetectionStatus = WAITING;
+	gSystemMode = WAITING;
 	gReportMode = DIRECT_MODE;
 }
 
@@ -117,7 +118,7 @@ void loop( void ) {
 	server.handleClient();	// WEBアクセスへのレスポンス
 
 	// システム状態に応じて処理し、条件がそろえば次の状態に遷移
-	switch( gDetectionStatus ) {
+	switch( gSystemMode ) {
 
 		case STANDBY: // -- ブラウザでの接続待機中
 			// この中では何もせず、ブラウザからの指示でRESUMEに遷移
@@ -144,13 +145,13 @@ void loop( void ) {
 
 			// 起動準備完了
 			if( WaitSec( &waiting_timer_s, kStartMonitorTimer_s ) ) {
-				gDetectionStatus = RESUME;
+				gSystemMode = RESUME;
 				Serial.println("MONITORING Start!" );
 			}
 			break;
 
 		case RESUME: // -- 起動直前。停止からの再開ポイント
-			gDetectionStatus = RUNNING;
+			gSystemMode = RUNNING;
 
 			Serial.println("MONITORING Start!" );
 
@@ -176,7 +177,7 @@ void loop( void ) {
 
 				// 一定時間以上揺れ続けたら、「震動」とみなす
 				if( SystemTickSec() - vibration_start >= kVibrationTimer_s ) {
-					gDetectionStatus = DETECTED;
+					gSystemMode = DETECTED;
 
 					// 警告音声
 					Talk( "shindouwo kenshutusimasita. nusu'nja dame'desuyo'.", true);
@@ -209,35 +210,4 @@ void loop( void ) {
 
 	} // case
 } // loop
-
-bool WaitSec( unsigned long* prev, int timer_s ) {
-	
-	// 初めての呼び出し時には現在時刻を記憶
-	if( *prev==0 ) *prev = millis();
-
-	if( millis() - *prev >= timer_s*1000 ) {
-		*prev = 0;
-		return true;
-	} else {
-		return false;
-	}
-}
-
-
-// 高度な（？）時間待ち関数の積もりだったけど、%(mod)で代用できるので出番なし
-bool WaitSec2( int sec ) {
-	static int begin=0;
-
-	if( begin==0 ) begin = SystemTickSec();
-	
-	if( SystemTickSec() - begin >= sec ) {
-		begin = 0;
-		return true;
-	} else {
-		return false;
-	}
-
-}
-
-
 

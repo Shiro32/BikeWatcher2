@@ -10,9 +10,10 @@
 // RUNNING	: システムの監視が始まっている状態
 // DETECTED	: 揺れを検知した状態。ブラウザで止めるまで永久
 // STOP		: 停止状態（どんな状態なのか・・・！？）
-typedef enum { WAITING, STANDBY, RESUME, RUNNING, DETECTED, STOP } DETECTION_STATUS;
+typedef enum { WAITING, STANDBY, RESUME, RUNNING, DETECTED, STOP } SYSTEM_MODE;
 
 // 通報方式
+// DIRECT: 親機を持ち歩きtweliteで通知 / WIFI:親機をバイクに置いてWIFI通知
 typedef enum { DIRECT_MODE, WIFI_MODE } COMM_MODE;
 
 
