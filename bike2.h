@@ -10,7 +10,7 @@
 // RUNNING	: システムの監視が始まっている状態
 // DETECTED	: 揺れを検知した状態。ブラウザで止めるまで永久
 // STOP		: 停止状態（どんな状態なのか・・・！？）
-typedef enum { WAITING, STANDBY, RESUME, RUNNING, DETECTED, STOP } DETECTION_STATUS;
+typedef enum { WAITING, STANDBY, RESUME, RUNNING, DETECTED, STOP } SYSTEM_STATUS;
 
 // 通報方式
 typedef enum { DIRECT_MODE, WIFI_MODE } COMM_MODE;
@@ -21,8 +21,7 @@ typedef enum { DIRECT_MODE, WIFI_MODE } COMM_MODE;
 #define OLED_HEIGHT		64
 #define OLED_RESET		-1		//使用しないので　-1を設定する。
 #define OLED_ADDRESS	0x3C	//I2Cアドレスは 0x3C
-
-
+typedef enum { ALIGN_LEFT, ALIGN_CENTER, ALIGN_RIGHT, ALIGN_TOP, ALIGN_BOTTOM } TEXT_ALIGN;
 
 // WIFI接続関係（プレーンテキストはまずい気もするが・・・）
 #define SSID1	"Shiro-iPhone"
@@ -49,12 +48,15 @@ typedef enum { DIRECT_MODE, WIFI_MODE } COMM_MODE;
 
 
 // システム動作関係
-const int kStartMonitorTimer_s = 30;	// （秒）監視開始タイマ（3分くらいがいい？）
-const int kVibrationTimer_s = 2;		// どれくらい継続したら震動検知とするか（秒）
+const int START_MONITORING_TIMER_s	= 30;	// （秒）監視開始タイマ（3分くらいがいい？）
+const int VIBRATION_TIMER_s 		= 2;	// どれくらい継続したら震動検知とするか（秒）
 
 
-// ボタン関係
+
+// ボタン状態
+typedef enum { BTN_NOTHING, BTN_PRESSING, BTN_1CLICK, BTN_LONGPRESS } BTN_STATUS;
 extern volatile BTN_STATUS leftBtnStatus, rightBtnStatus;
+const uint32_t BTN_LONGPRESS_TIME_ms = 1000;
 
 void onShakeHandler();
 

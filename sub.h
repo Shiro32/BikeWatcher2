@@ -10,6 +10,8 @@
 const int IOT_ID = 57196;
 const char* IOT_WRITE_KEY = "d16d40711a7b4297";
 
+void SelectCommMode( void );
+
 void SetupWiFi( void );
 void SetupOTA( void );
 void SetupBatSOC( void );
