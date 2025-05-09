@@ -69,6 +69,31 @@ void SetupButtons( void ) {
 	attachInterrupt( GPIO_BTN_RIGHT, onRightBtnPressed, CHANGE );
 }
 
+void SelectCommMode( void ) {
+	// 画面に何か出す
+	oled.clear();
+	oled.print( OLED_WIDTH/2, 0, ALIGN_CENTER, "Select COMM MODE");
+	oled.print( 0, 20, "L:DIRECT / R:WIFI" );
+	oled.flush();
+
+	// ボタンが押されるまで待つ
+	while( true ) {
+		if( leftBtnStatus==BTN_1CLICK ) {
+			gCommMode = DIRECT_MODE;
+			break;
+		}
+		if( rightBtnStatus==BTN_1CLICK ) {
+			gCommMode = WIFI_MODE;
+			break;
+		}
+
+	}
+
+	leftBtnStatus  = BTN_NOTHING;
+	rightBtnStatus = BTN_NOTHING;
+
+}
+
 
 
 // -------------------------------------------------------------------------
