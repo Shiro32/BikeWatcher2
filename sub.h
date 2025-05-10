@@ -15,11 +15,11 @@ void SelectCommMode( void );
 void SetupWiFi( void );
 void SetupOTA( void );
 void SetupBatSOC( void );
-float GetBatSoc( void );
+float GetBattSoc( void );
 bool WaitSec( uint32_t*, uint8_t );
 void SendToCloud(void);
 void SetupCloud( uint16_t );
-
+void SendLineNotify(char *str);
 
 const char* SSID1	= "Shiro-iPhone";
 const char* PSWD1	= "hogehoge";
@@ -33,12 +33,11 @@ const char* PSWD3	= "bvjsci3wpcf4g";
 const char* SSID4	= "&79<G]y";
 const char* PSWD4	= "cE63f4?P";
 
+#define LINE_TOKEN	"zG7RzSGz0lore6SNGqF2VrFcVX1r2OcKGezJq7moAVQ"
+#define LINE_HOST	"notify-api.line.me"
+
+
 typedef enum { ALIGN_LEFT, ALIGN_CENTER, ALIGN_RIGHT, ALIGN_TOP, ALIGN_BOTTOM } TEXT_ALIGN;
-
-// ボタン状態
-typedef enum { BTN_NOTHING, BTN_PRESSING, BTN_1CLICK, BTN_LONGPRESS } BTN_STATUS;
-
-const uint32_t BTN_LONGPRESS_TIME_ms = 1000;
 
 class OLED : public Adafruit_SSD1306 {
 	public:

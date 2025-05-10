@@ -24,6 +24,8 @@
 #include <WebServer.h>
 
 // for OLED Display
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 #include <Fonts/FreeSansBold9pt7b.h>
 #include <Fonts/FreeSansBold12pt7b.h>
 #include <Fonts/FreeSansBold18pt7b.h>
@@ -31,7 +33,8 @@
 #include <Fonts/FreeMonoBold9pt7b.h>
 
 #include "bike2.h"
-#include "html.h"
+#include "sub.h"
+#include "html2.h"
 
 // 各種モード保持グローバル（初期化はsetupで）
 SYSTEM_MODE gSystemMode;	// 待機・検出などの全体モード
@@ -55,12 +58,13 @@ void setup( void ) {
 
 	// シリアル通信関係
 	Serial.begin(115200);	// PCとのシリアル通信（いるのか？）
-	Serial.println（”Welcome to BikeWatcher2!!");
+	
 
 	// OLEDの初期化
 	if(!oled.begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS)) {
 		for(;;);
 	}
+
 	oled.clear();               //何か表示されている場合に備えて表示クリア
 	oled.setRotation(2);
 	oled.print( OLED_WIDTH/2, 0, ALIGN_CENTER, 2, "Welcome" );
@@ -92,7 +96,7 @@ void setup( void ) {
 
 	// バッテリー残量管理
 	SetupBatSOC();
-	gBatSOC = GetBatSoc();
+	gBattSOC = GetBattSoc();
 
 	// 操作用ボタン初期化
 	SetupButtons();
@@ -102,7 +106,7 @@ void setup( void ) {
 	// いきなり監視始められるようにする
 	// ★鍵をかける前に始まってしまう問題はどうする？（タイマが必要）
 	gSystemMode = WAITING;
-	gReportMode = DIRECT_MODE;
+	gCommMode	= DIRECT_MODE;
 }
 
 
@@ -120,9 +124,8 @@ void loop( void ) {
 	ArduinoOTA.handle();
 
 	// 5秒に１回、WiFiチェック。切断時は自動リトライ
-	if( SystemTickSec() % 5 == 0 ) CheckWifi();
-
-	server.handleClient();	// WEBアクセスへのレスポンス
+//	if( SystemTickSec() % 5 == 0 ) CheckWifi();
+//	server.handleClient();	// WEBアクセスへのレスポンス
 
 	// システム状態に応じて処理し、条件がそろえば次の状態に遷移
 	switch( gSystemMode ) {
@@ -131,31 +134,31 @@ void loop( void ) {
 			// この中では何もせず、ブラウザからの指示でRESUMEに遷移
 
 			// 待機中は振動感知しない
-			detachInterrupt( kVibrationPin );
+			//detachInterrupt( kVibrationPin );
 
 			// 60秒に1度、接続を促す
-			if( WaitSec( &standby_counter_s, 60 ) ) {
-				Talk( "burau'zade kai'sibo'tanwo osite'kudasai.", false );
-				Serial.println( "Please connect via browser." );
-				delay(1000);	// これを入れないと数十回呼ばれてしまう
-			}
+			//if( WaitSec( &standby_counter_s, 60 ) ) {
+			//	Talk( "burau'zade kai'sibo'tanwo osite'kudasai.", false );
+			//	Serial.println( "Please connect via browser." );
+			//	delay(1000);	// これを入れないと数十回呼ばれてしまう
+			//}
 			// 接続待ちの表示
-			BitmapMatrix88( kWaitBmp, true );
+			//BitmapMatrix88( kWaitBmp, true );
 			break;
 
 		case WAITING: // -- 起動タイマーで待たされている状態
 			// 振動検出しない
-			detachInterrupt( kVibrationPin );
+			//detachInterrupt( kVibrationPin );
 
 			// 準備中の表示（バー表示）
-			IndicatorMatrix88( SystemTickSec(), kStartMonitorTimer_s );
+			//IndicatorMatrix88( SystemTickSec(), kStartMonitorTimer_s );
 
 			// 起動準備完了
-			if( WaitSec( &waiting_timer_s, kStartMonitorTimer_s ) ) {
-				gSystemMode = RESUME;
-				Serial.println("MONITORING Start!" );
-			}
-			break;
+			//if( WaitSec( &waiting_timer_s, kStartMonitorTimer_s ) ) {
+			//	gSystemMode = RESUME;
+			//	Serial.println("MONITORING Start!" );
+			//}
+			//break;
 
 		case RESUME: // -- 起動直前。停止からの再開ポイント
 			gSystemMode = RUNNING;
@@ -163,56 +166,56 @@ void loop( void ) {
 			Serial.println("MONITORING Start!" );
 
 			// 振動センサ起動
-			vibration_detected = false;
-			attachInterrupt( kVibrationPin, onShakeHandler, CHANGE );
-			BitmapMatrix88( kSmileBmp, true );
+			//vibration_detected = false;
+			//attachInterrupt( kVibrationPin, onShakeHandler, CHANGE );
+			//BitmapMatrix88( kSmileBmp, true );
 			break;
 
 		case RUNNING: // -- 起動完了後の処理（通常ループ）
-			BitmapMatrix88( kSmileBmp, true );
+			//BitmapMatrix88( kSmileBmp, true );
 			
-			// 震動を検出し続けている限り、無数に呼び続けられる
-			// 都度、震動フラグをオフにして、振動センサで再セットされる回数をカウント
-			if( vibration_detected ) {
-				vibration_detected = 0;	// リセットして、センサーで再セットされることを待つ
-				delay(1000);
+			//// 震動を検出し続けている限り、無数に呼び続けられる
+			//// 都度、震動フラグをオフにして、振動センサで再セットされる回数をカウント
+			//if( vibration_detected ) {
+			//	vibration_detected = 0;	// リセットして、センサーで再セットされることを待つ
+			//	delay(1000);
 
-				Serial.print("DETECTING:start=");
-				Serial.print( vibration_start );
-				Serial.print( "/now=");
-				Serial.println( SystemTickSec() );
+			//	Serial.print("DETECTING:start=");
+			//	Serial.print( vibration_start );
+			//	Serial.print( "/now=");
+			//	Serial.println( SystemTickSec() );
 
-				// 一定時間以上揺れ続けたら、「震動」とみなす
-				if( SystemTickSec() - vibration_start >= kVibrationTimer_s ) {
-					gSystemMode = DETECTED;
+			//	// 一定時間以上揺れ続けたら、「震動」とみなす
+			//	if( SystemTickSec() - vibration_start >= kVibrationTimer_s ) {
+			//		gSystemMode = DETECTED;
 
-					// 警告音声
-					Talk( "shindouwo kenshutusimasita. nusu'nja dame'desuyo'.", true);
+			//		// 警告音声
+			//		Talk( "shindouwo kenshutusimasita. nusu'nja dame'desuyo'.", true);
 
-					// お怒り表示
-					BitmapMatrix88( kBikkuriBmp, true );
-					Serial.println( "振動検出!" );
+			//		// お怒り表示
+			//		BitmapMatrix88( kBikkuriBmp, true );
+			//		Serial.println( "振動検出!" );
 
-					// LINEで警報通知
-					SendLineNotify("自転車が盗まれそうになっていますよ！ はやく戻って確認しましょう！");
-				}
-			} else {
-				vibration_start = SystemTickSec();	// 揺れていなかった頃の時刻を覚えておく
-			}
+			//		// LINEで警報通知
+			//		SendLineNotify("自転車が盗まれそうになっていますよ！ はやく戻って確認しましょう！");
+			//	}
+			//} else {
+			//	vibration_start = SystemTickSec();	// 揺れていなかった頃の時刻を覚えておく
+			//}
 
 			break;
 
 		case DETECTED: // -- 振動検出後の処理（webで停めるまでずっと）
-			static int a = 0;
-			BitmapMatrix88( kXBmp, true );
-			if( WaitSec( &detected_counter_s, 30 ) ) Talk( (++a % 2)==0?"nusu'nja dame'desuyo'":"shindouwo kenshutu simasita.", false );
+			//static int a = 0;
+			//BitmapMatrix88( kXBmp, true );
+			//if( WaitSec( &detected_counter_s, 30 ) ) Talk( (++a % 2)==0?"nusu'nja dame'desuyo'":"shindouwo kenshutu simasita.", false );
 			break;
 
 		case STOP: // -- 終了～
-			// 待機中は振動感知しない
-			detachInterrupt( kVibrationPin );
+			//// 待機中は振動感知しない
+			//detachInterrupt( kVibrationPin );
 
-			BitmapMatrix88( kWaitBmp, false );
+			//BitmapMatrix88( kWaitBmp, false );
 			break;
 
 	} // case

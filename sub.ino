@@ -73,7 +73,7 @@ void SelectCommMode( void ) {
 	// 画面に何か出す
 	oled.clear();
 	oled.print( OLED_WIDTH/2, 0, ALIGN_CENTER, "Select COMM MODE");
-	oled.print( 0, 20, "L:DIRECT / R:WIFI" );
+	oled.print( OLED_WIDTH/2, 20, ALIGN_CENTER, "L:DIRECT / R:WIFI" );
 	oled.flush();
 
 	// ボタンが押されるまで待つ
@@ -86,7 +86,6 @@ void SelectCommMode( void ) {
 			gCommMode = WIFI_MODE;
 			break;
 		}
-
 	}
 
 	leftBtnStatus  = BTN_NOTHING;
@@ -101,15 +100,15 @@ void SelectCommMode( void ) {
 
 // -------------------------------------------------------------------------
 // SOCを取り込むADCピンの設定
-void SetupBatSOC( void ) {
-	pinMode( GPIO_BAT_SOC, INPUT );
+void SetupBattSOC( void ) {
+	pinMode( GPIO_BATT_SOC, INPUT );
 }
 
 // -------------------------------------------------------------------------
 // SOCを拾う。ただ、電圧をfloatで返すだけ
-float GetBatSoc( void ) {
+float GetBattSoc( void ) {
 	uint32_t vbat = 0;
-	for( uint8_t i=0; i<8; i++ ) vbat += analogReadMilliVolts( GPIO_BAT_SOC );
+	for( uint8_t i=0; i<8; i++ ) vbat += analogReadMilliVolts( GPIO_BATT_SOC );
 	return( 2.0*vbat/8/1000 );
 }
 
@@ -273,16 +272,39 @@ bool WaitSec( uint32_t* prev, uint8_t timer_s ) {
 }
 
 // -------------------------------------------------------------------------
-// クラウド（Ambient）への送信
-void SetupCloud( void ) {
-	ambient.begin( IOT_ID, IOT_WRITE_KEY, &wifi_client );
-}
+// LINEへの通知発信（いつもの奴）
+void SendLineNotify(char *str) {
+	// HTTPSへアクセス（SSL通信）するためのライブラリ
+	WiFiClientSecure client;
 
-//------------------------------------------------------------------------------
-// IoTクラウド（Ambient）への送信
-// fishとturtleのfloat数値を送信
-void SendToCloud( uint16_t co2 ) {
-	ambient.set( 1, (float)co2  );
-	ambient.send();
-}
+	// サーバー証明書の検証を行わずに接続する場合に必要
+	client.setInsecure();
+	Serial.println("LINE NOTIFICATION");
+	
+	//LineのAPIサーバにSSL接続（ポート443:https）
+	if (!client.connect(LINE_HOST, 443)) {
+		Serial.println("Connection failed");
+		return;
+	}
+	Serial.println("Line Connected");
 
+	// リクエスト送信
+	String query = String("message=") + String(str);
+	String request=
+	  String("") +
+		"POST /api/notify HTTP/1.1\r\n" +
+		"Host: " + LINE_HOST + "\r\n" +
+		"Authorization: Bearer " + LINE_TOKEN + "\r\n" +
+		"Content-Length: " + String(query.length()) +	"\r\n" + 
+		"Content-Type: application/x-www-form-urlencoded\r\n\r\n" +
+		query + "\r\n";
+	client.print(request);
+ 
+	// 受信完了まで待機 
+	while (client.connected()) {
+		String line = client.readStringUntil('\n');
+		if (line == "\r") break;
+	}
+	
+	String line = client.readStringUntil('\n');
+	Serial.println(line);

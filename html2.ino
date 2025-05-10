@@ -31,13 +31,13 @@ void InitServer( void ) {
 void HandleStopAlarm( void ) {
 	String html;
 
-	system_mode = RESUME;
+	gSystemMode = RESUME;
 	vibration_detected = false;	// 振動スイッチハンドラでTrueになり、ここでオフにする
 
 	Serial.println("警報停止！！" );
 	SendLineNotify( "警報を停止しました！" );
-	Talk( "ke'ihouwo teisi'simasita.", true );
-	BitmapMatrix88( kStopBmp, false );
+	//Talk( "ke'ihouwo teisi'simasita.", true );
+	//BitmapMatrix88( kStopBmp, false );
 
 	// HTMLのコード（自動遷移でrootに戻る）
 	html = R"(<!DOCTYPE html>
@@ -60,8 +60,8 @@ void HandleStopAlarm( void ) {
 void HandleStart( void ) {
 	String html;
 
-	system_mode = RESUME;	// これだけでシステム再起動できる
-	Talk( "kan'siwo kai'sisimasita.", true );
+	gSystemMode = RESUME;	// これだけでシステム再起動できる
+	//Talk( "kan'siwo kai'sisimasita.", true );
 	SendLineNotify( "自転車の監視を開始しました！" );
 
 
@@ -86,8 +86,8 @@ void HandleStart( void ) {
 void HandleSystemOff( void ) {
 	String html;
 
-	system_mode = STOP;
-	Talk( "kan'siwo tei'sisi'masita", true );
+	gSystemMode = STOP;
+	//Talk( "kan'siwo tei'sisi'masita", true );
 	SendLineNotify( "自転車の監視を終了しました！" );
 
 
@@ -127,7 +127,7 @@ void HandleRoot( void ) {
 )";
 
 	// 起動待ち状態でなければ、警報停止や終了ボタンが登場
-	if( system_mode >= RESUME ) {
+	if( gSystemMode >= RESUME ) {
 		html += R"(
 <br><br><br>
 <input type='button' value='警報停止' onclick='location.href="stop"' style="width:100%; height:2em; padding:50px; font-size:1000%;" />

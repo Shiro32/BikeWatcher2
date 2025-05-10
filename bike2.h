@@ -10,11 +10,7 @@
 // RUNNING	: システムの監視が始まっている状態
 // DETECTED	: 揺れを検知した状態。ブラウザで止めるまで永久
 // STOP		: 停止状態（どんな状態なのか・・・！？）
-<<<<<<< HEAD
 typedef enum { WAITING, STANDBY, RESUME, RUNNING, DETECTED, STOP } SYSTEM_MODE;
-=======
-typedef enum { WAITING, STANDBY, RESUME, RUNNING, DETECTED, STOP } SYSTEM_STATUS;
->>>>>>> 59834382cb39196b72a409ddbe1507027258edf9
 
 // 通報方式
 // DIRECT: 親機を持ち歩きtweliteで通知 / WIFI:親機をバイクに置いてWIFI通知
@@ -26,23 +22,9 @@ typedef enum { DIRECT_MODE, WIFI_MODE } COMM_MODE;
 #define OLED_HEIGHT		64
 #define OLED_RESET		-1		//使用しないので　-1を設定する。
 #define OLED_ADDRESS	0x3C	//I2Cアドレスは 0x3C
-typedef enum { ALIGN_LEFT, ALIGN_CENTER, ALIGN_RIGHT, ALIGN_TOP, ALIGN_BOTTOM } TEXT_ALIGN;
-
-// WIFI接続関係（プレーンテキストはまずい気もするが・・・）
-#define SSID1	"Shiro-iPhone"
-#define PSWD1	"hogehoge"
-
-#deffne SSID2	"C330"
-#define PSWD2	"hogehoge"
-
-#define SSID3	= "TP_LINK_KURA_5G"
-#define PSWD3	= "0466831703"
-
-#define LINE_TOKEN	= "zG7RzSGz0lore6SNGqF2VrFcVX1r2OcKGezJq7moAVQ"
-#define LINE_HOST	= "notify-api.line.me"
 
 // GPIO関係（あんまり無いけど）
-#define GPIO_BAT_SOC	A0
+#define GPIO_BATT_SOC	A0
 #define GPIO_BTN_LEFT	D1
 #define GPIO_BTN_RIGHT	D2
 
