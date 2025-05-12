@@ -32,7 +32,7 @@ void HandleStopAlarm( void ) {
 	String html;
 
 	gSystemMode = RESUME;
-	vibration_detected = false;	// 振動スイッチハンドラでTrueになり、ここでオフにする
+	gVibrationDetected = false;	// 振動スイッチハンドラでTrueになり、ここでオフにする
 
 	Serial.println("警報停止！！" );
 	SendLineNotify( "警報を停止しました！" );

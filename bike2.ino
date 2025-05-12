@@ -43,11 +43,6 @@ COMM_MODE gCommMode;		// 通報モード（DIRECT: 親機を持ち歩きtwelite�
 // OLED関係
 OLED oled( OLED_WIDTH, OLED_HEIGHT, &Wire, OLED_RESET );
 
-// 震動検知通知用（割り込みのvolatile変数）
-volatile bool vibration_detected = false;	// false:通常, true:検出
-int vibration_start = 0;					// 揺れの継続時間を測るため、揺れていなかった時代の最後のTick（秒）
-
-
 float gBattSOC;								// バッテリー残量（電圧？）
 
 // -------------------------------------------------------------------------
@@ -55,11 +50,11 @@ float gBattSOC;								// バッテリー残量（電圧？）
 // ESP32の起動時に１回だけ実行される
 // OLED（I2C）、各種GPIO、割り込みハンドラの設定
 void setup( void ) {
+	String ip;
 
 	// シリアル通信関係
 	Serial.begin(115200);	// PCとのシリアル通信（いるのか？）
 	
-
 	// OLEDの初期化
 	if(!oled.begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS)) {
 		for(;;);
@@ -68,34 +63,43 @@ void setup( void ) {
 	oled.clear();               //何か表示されている場合に備えて表示クリア
 	oled.setRotation(2);
 	oled.print( OLED_WIDTH/2, 0, ALIGN_CENTER, 2, "Welcome" );
+	oled.drawXBitmap( 0, 0, ICON_ALERT, 128, 64, WHITE );
 	oled.flush();
 
 	// ボタンGPIO
 	SetupButtons();
 
+	// まずとりあえずはWiFiとOTAを動かす
+	SetupWiFi();
+	ConnectWiFi();
+	SetupOTA();
+
 	// 通信モードを選択してもらう
 	SelectCommMode();
 
-	if( gCommMode==WIFI_MODE ) {
+	switch( gCommMode ) {
+	  case WIFI_MODE:
 		oled.print( 0, 20, ALIGN_LEFT, 1, "Checking Network..." );
 		oled.flush();
-
-		SetupWiFi();	// WiFi接続（途中のモード変更でもできるように）
-		SetupOTA();		// On The Air処理用
 
 		// Webサーバー初期化
 		InitServer();
 
-		String ip;
 		ip = WiFi.localIP().toString();
 		ip = "IP:"+ip;
 		oled.print( 0, 30, 1, ip.c_str(), true );
 		oled.flush();
-	}
-		
+		break;
+	
+	  case DIRECT_MODE:
+		DisconnectWiFi();
+		oled.drawXBitmap(0, 0, ICON_MONITORING, 128, 64, WHITE);
+		oled.flush();
+		break;
+	}	
 
 	// バッテリー残量管理
-	SetupBatSOC();
+	SetupBattSOC();
 	gBattSOC = GetBattSoc();
 
 	// 操作用ボタン初期化
@@ -106,7 +110,12 @@ void setup( void ) {
 	// いきなり監視始められるようにする
 	// ★鍵をかける前に始まってしまう問題はどうする？（タイマが必要）
 	gSystemMode = WAITING;
-	gCommMode	= DIRECT_MODE;
+
+	// システムタイマ起動（100万マイクロ秒＝１秒）
+	TimerLib.setInterval_us( CountSystemTickSec, 1000000 );
+
+	oled.clear();               //何か表示されている場合に備えて表示クリア
+
 }
 
 
@@ -116,49 +125,50 @@ void setup( void ) {
 // 将来的には、DeepSleepを実装したいところ
 void loop( void ) {
 	// 各種タイミング計測用カウンタ
-	static unsigned long standby_counter_s = 0;
-	static unsigned long waiting_timer_s = 0;
-	static unsigned long detected_counter_s = 0;
+	static uint32_t standby_counter_s = 0;
+	static uint32_t waiting_timer_s = 0;
+	static uint32_t detected_counter_s = 0;
+	static uint32_t wifi_counter_s = 0;
 
-	// for OTA
-	ArduinoOTA.handle();
+	char s[80];
 
-	// 5秒に１回、WiFiチェック。切断時は自動リトライ
-//	if( SystemTickSec() % 5 == 0 ) CheckWifi();
-//	server.handleClient();	// WEBアクセスへのレスポンス
+	// WiFiモード時のネットワーク関係処理
+	if( gCommMode==WIFI_MODE ) {
+		// OTA処理
+		ArduinoOTA.handle();
+
+		// 5秒に１回、WiFiチェック。切断時は自動リトライ
+		if( WaitSec(&wifi_counter_s, 5) ) ConnectWiFi();
+
+		// WEBアクセスへのレスポンス（警報停止など）
+		// server.handleClient();
+	}
 
 	// システム状態に応じて処理し、条件がそろえば次の状態に遷移
 	switch( gSystemMode ) {
-
+#if 0	
 		case STANDBY: // -- ブラウザでの接続待機中
 			// この中では何もせず、ブラウザからの指示でRESUMEに遷移
 
 			// 待機中は振動感知しない
-			//detachInterrupt( kVibrationPin );
-
-			// 60秒に1度、接続を促す
-			//if( WaitSec( &standby_counter_s, 60 ) ) {
-			//	Talk( "burau'zade kai'sibo'tanwo osite'kudasai.", false );
-			//	Serial.println( "Please connect via browser." );
-			//	delay(1000);	// これを入れないと数十回呼ばれてしまう
-			//}
-			// 接続待ちの表示
-			//BitmapMatrix88( kWaitBmp, true );
+			DetachiTW2525Interrupt();
 			break;
+#endif
 
 		case WAITING: // -- 起動タイマーで待たされている状態
 			// 振動検出しない
-			//detachInterrupt( kVibrationPin );
+			DetachTW2525Interrupt();
+			
+			// 準備中のカウントダウン
+			sprintf( s, "%2lu", START_MONITORING_TIMER_s - SystemTickSec() );
+			oled.print( OLED_WIDTH/2, 0, ALIGN_CENTER, 5, s );
+			oled.flush();
 
-			// 準備中の表示（バー表示）
-			//IndicatorMatrix88( SystemTickSec(), kStartMonitorTimer_s );
-
-			// 起動準備完了
-			//if( WaitSec( &waiting_timer_s, kStartMonitorTimer_s ) ) {
-			//	gSystemMode = RESUME;
-			//	Serial.println("MONITORING Start!" );
-			//}
-			//break;
+			if( SystemTickSec()>=START_MONITORING_TIMER_s ) {
+				gSystemMode = RESUME;
+				Serial.println("MONITORING Start!" );
+			}
+			break;
 
 		case RESUME: // -- 起動直前。停止からの再開ポイント
 			gSystemMode = RUNNING;
@@ -166,43 +176,27 @@ void loop( void ) {
 			Serial.println("MONITORING Start!" );
 
 			// 振動センサ起動
-			//vibration_detected = false;
-			//attachInterrupt( kVibrationPin, onShakeHandler, CHANGE );
-			//BitmapMatrix88( kSmileBmp, true );
+			AttachTW2525Interrupt();
 			break;
 
 		case RUNNING: // -- 起動完了後の処理（通常ループ）
-			//BitmapMatrix88( kSmileBmp, true );
+			oled.clear();
 			
-			//// 震動を検出し続けている限り、無数に呼び続けられる
-			//// 都度、震動フラグをオフにして、振動センサで再セットされる回数をカウント
-			//if( vibration_detected ) {
-			//	vibration_detected = 0;	// リセットして、センサーで再セットされることを待つ
-			//	delay(1000);
+			if( gSystemMode==WIFI_MODE ) {
+				if( SystemTickSec()%2 )	oled.drawXBitmap( 0, 0, ICON_MONITORING, 128, 64, WHITE );
+			} else {
+				sprintf( s, "monitoring %lu sec", SystemTickSec() );
+				oled.print( 0, 0, ALIGN_LEFT, 1, s );
+				sprintf( s, "batt voltage:%1.2f", GetBattSoc() );
+				oled.print( 0,20, ALIGN_LEFT, 1, s );
+			}
+			oled.flush();
 
-			//	Serial.print("DETECTING:start=");
-			//	Serial.print( vibration_start );
-			//	Serial.print( "/now=");
-			//	Serial.println( SystemTickSec() );
-
-			//	// 一定時間以上揺れ続けたら、「震動」とみなす
-			//	if( SystemTickSec() - vibration_start >= kVibrationTimer_s ) {
-			//		gSystemMode = DETECTED;
-
-			//		// 警告音声
-			//		Talk( "shindouwo kenshutusimasita. nusu'nja dame'desuyo'.", true);
-
-			//		// お怒り表示
-			//		BitmapMatrix88( kBikkuriBmp, true );
-			//		Serial.println( "振動検出!" );
-
-			//		// LINEで警報通知
-			//		SendLineNotify("自転車が盗まれそうになっていますよ！ はやく戻って確認しましょう！");
-			//	}
-			//} else {
-			//	vibration_start = SystemTickSec();	// 揺れていなかった頃の時刻を覚えておく
-			//}
-
+			if( gVibrationDetected ) {
+				Serial.println( "Detected!" );
+				gSystemMode = DETECTED;
+				SendLineNotify("振動検出！すぐ自転車に戻りましょう！");
+			}
 			break;
 
 		case DETECTED: // -- 振動検出後の処理（webで停めるまでずっと）
@@ -219,5 +213,8 @@ void loop( void ) {
 			break;
 
 	} // case
+
+
+
 } // loop
 

@@ -14,10 +14,14 @@
 
 WiFiMulti wifi_multi;
 WiFiClient wifi_client;
-Ambient ambient;
 
 volatile BTN_STATUS rightBtnStatus, leftBtnStatus;
 uint32_t rightBtnTick, leftBtnTick;
+
+// 震動検知通知用（割り込みのvolatile変数）
+volatile bool gVibrationDetected=false;
+
+uint32_t gSystemTick_s=0;
 
 // -------------------------------------------------------------------------
 // プッシュボタン関係
@@ -69,15 +73,47 @@ void SetupButtons( void ) {
 	attachInterrupt( GPIO_BTN_RIGHT, onRightBtnPressed, CHANGE );
 }
 
+// -------------------------------------------------------------------------
+// TW2525A関係（振動通知）
+void AttachTW2525Interrupt( void ) {
+	gVibrationDetected = false;
+
+	attachInterrupt( GPIO_TW2525_D1, onShakeHandler, CHANGE );
+	attachInterrupt( GPIO_TW2525_D2, onShakeHandler, CHANGE );
+	attachInterrupt( GPIO_TW2525_D4, onShakeHandler, CHANGE );
+}
+
+void DetachTW2525Interrupt( void ) {
+	detachInterrupt( GPIO_TW2525_D1 );
+	detachInterrupt( GPIO_TW2525_D2 );
+	detachInterrupt( GPIO_TW2525_D4 );
+}
+
+// -------------------------------------------------------------------------
+// 揺れを検出した際の処理ハンドラ（割り込みで呼ばれる）
+// 割り込み処理はさっさと早く終わらせたいので、フラグだけ立てて終了
+// 高速処理が必要とかで、内部RAMに置くための特別の宣言が必要
+void IRAM_ATTR onShakeHandler( void ) {
+	gVibrationDetected = true;
+}
+
+
+
+// -------------------------------------------------------------------------
+// 通信方式選択
+// 起動直後はココの選択で止まっているはずなので、OTAもやっておく
 void SelectCommMode( void ) {
 	// 画面に何か出す
 	oled.clear();
-	oled.print( OLED_WIDTH/2, 0, ALIGN_CENTER, "Select COMM MODE");
-	oled.print( OLED_WIDTH/2, 20, ALIGN_CENTER, "L:DIRECT / R:WIFI" );
+	oled.print( OLED_WIDTH/2, 0, ALIGN_CENTER, 1, "Select COMM MODE");
+	oled.print( OLED_WIDTH/2, 20, ALIGN_CENTER,1, "L:DIRECT / R:WIFI" );
 	oled.flush();
 
 	// ボタンが押されるまで待つ
 	while( true ) {
+		// OTA処理
+		ArduinoOTA.handle();
+
 		if( leftBtnStatus==BTN_1CLICK ) {
 			gCommMode = DIRECT_MODE;
 			break;
@@ -88,8 +124,15 @@ void SelectCommMode( void ) {
 		}
 	}
 
+	oled.print( OLED_WIDTH/2, 30, ALIGN_CENTER, 2, gCommMode==DIRECT_MODE?"DIRECT":"WIFI" );
+	oled.flush();
+
 	leftBtnStatus  = BTN_NOTHING;
 	rightBtnStatus = BTN_NOTHING;
+
+	delay(2000);
+	oled.clear();
+	oled.flush();
 
 }
 
@@ -191,13 +234,20 @@ void OLED::flush( void ) {
 // -------------------------------------------------------------------------
 // WiFiの接続状況をチェックする
 void SetupWiFi( void ) {
-	String ssid, name, ip;
-
 	// WiFi接続処理
 	wifi_multi.addAP( SSID1, PSWD1 );
 	wifi_multi.addAP( SSID2, PSWD2 );
 	wifi_multi.addAP( SSID3, PSWD3 );
 	wifi_multi.addAP( SSID4, PSWD4 );
+}
+
+void DisconnectWiFi( void ) {
+	// WiWiを切断し、電源まで切っちゃう
+	WiFi.disconnect( true );
+}
+
+void ConnectWiFi( void ) {
+	String ssid, name, ip;
 
 	// まず接続チェック（接続済みならreturn）
 	if( WiFi.status() == WL_CONNECTED ) return;
@@ -272,6 +322,16 @@ bool WaitSec( uint32_t* prev, uint8_t timer_s ) {
 }
 
 // -------------------------------------------------------------------------
+// １秒単位のシステムTICKをカウントアップする
+// タイマーハンドラーで１秒単位に実行してもらっている
+void CountSystemTickSec( void ) {
+	gSystemTick_s++;
+}
+uint32_t SystemTickSec( void ) {
+	return( gSystemTick_s );
+}
+
+// -------------------------------------------------------------------------
 // LINEへの通知発信（いつもの奴）
 void SendLineNotify(char *str) {
 	// HTTPSへアクセス（SSL通信）するためのライブラリ
@@ -308,3 +368,5 @@ void SendLineNotify(char *str) {
 	
 	String line = client.readStringUntil('\n');
 	Serial.println(line);
+}
+

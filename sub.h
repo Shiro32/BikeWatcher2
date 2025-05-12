@@ -12,14 +12,28 @@ const char* IOT_WRITE_KEY = "d16d40711a7b4297";
 
 void SelectCommMode( void );
 
+void SetupButtons( void );
+
 void SetupWiFi( void );
+void CheckWiFi( void );
+void ConnectWiFi( void );
 void SetupOTA( void );
-void SetupBatSOC( void );
+void SetupBattSOC( void );
 float GetBattSoc( void );
+void onShakeHandler();
+
 bool WaitSec( uint32_t*, uint8_t );
-void SendToCloud(void);
+void CountSystemTickSec( void );
+uint32_t SystemTickSec( void );
+
 void SetupCloud( uint16_t );
 void SendLineNotify(char *str);
+
+void AttachTW2525Interrupt( void );
+void DetachTW2525Interrupt( void );
+
+extern volatile bool gVibrationDetected;
+
 
 const char* SSID1	= "Shiro-iPhone";
 const char* PSWD1	= "hogehoge";
@@ -27,8 +41,8 @@ const char* PSWD1	= "hogehoge";
 const char* SSID2	= "C330";
 const char* PSWD2	= "hogehoge";
 
-const char* SSID3	= "Buffalo-G-F600";
-const char* PSWD3	= "bvjsci3wpcf4g";
+const char* SSID3	= "TP-LINK-KURA";
+const char* PSWD3	= "0466831703";
 
 const char* SSID4	= "&79<G]y";
 const char* PSWD4	= "cE63f4?P";
@@ -55,6 +69,8 @@ class OLED : public Adafruit_SSD1306 {
 
 	private:
 };
+
+
 
 
 #endif
