@@ -4,7 +4,7 @@
   対象：XIAO ESP32C
 
   履歴：
-  2022/10/16 初版稼働（WiFiの動的切替、音声発信など）
+  2025/05/12 初版稼働（WiFiの動的切替、液晶表示）
 
   TODO:
 
@@ -37,8 +37,8 @@
 #include "html2.h"
 
 // 各種モード保持グローバル（初期化はsetupで）
-SYSTEM_MODE gSystemMode;	// 待機・検出などの全体モード
-COMM_MODE gCommMode;		// 通報モード（DIRECT: 親機を持ち歩きtweliteで通知 / WIFI:親機をバイクに置いてWIFI通知）
+SYSTEM_MODE	gSystemMode;	// 待機・検出などの全体モード
+COMM_MODE	gCommMode;		// 通報モード（DIRECT: 親機を持ち歩きtweliteで通知 / WIFI:親機をバイクに置いてWIFI通知）
 
 // OLED関係
 OLED oled( OLED_WIDTH, OLED_HEIGHT, &Wire, OLED_RESET );
@@ -126,13 +126,15 @@ void setup( void ) {
 void loop( void ) {
 	// 各種タイミング計測用カウンタ
 	static uint32_t standby_counter_s = 0;
-	static uint32_t waiting_timer_s = 0;
+	static uint8_t  waiting_timer_s = START_MONITORING_TIMER_s;
+
+	static uint32_t oneSecTimer_s = 0;
 	static uint32_t detected_counter_s = 0;
 	static uint32_t wifi_counter_s = 0;
 
 	char s[80];
 
-	// WiFiモード時のネットワーク関係処理
+	// WiFiモード時のネットワーク関係処理（DIRECTモードでは特段の処理不要）
 	if( gCommMode==WIFI_MODE ) {
 		// OTA処理
 		ArduinoOTA.handle();
@@ -141,57 +143,69 @@ void loop( void ) {
 		if( WaitSec(&wifi_counter_s, 5) ) ConnectWiFi();
 
 		// WEBアクセスへのレスポンス（警報停止など）
-		// server.handleClient();
+		server.handleClient();
 	}
+
 
 	// システム状態に応じて処理し、条件がそろえば次の状態に遷移
 	switch( gSystemMode ) {
-#if 0	
-		case STANDBY: // -- ブラウザでの接続待機中
-			// この中では何もせず、ブラウザからの指示でRESUMEに遷移
-
-			// 待機中は振動感知しない
-			DetachiTW2525Interrupt();
-			break;
-#endif
 
 		case WAITING: // -- 起動タイマーで待たされている状態
 			// 振動検出しない
 			DetachTW2525Interrupt();
 			
 			// 準備中のカウントダウン
-			sprintf( s, "%2lu", START_MONITORING_TIMER_s - SystemTickSec() );
+			sprintf( s, "%d", --waiting_timer_s );
 			oled.print( OLED_WIDTH/2, 0, ALIGN_CENTER, 5, s );
 			oled.flush();
 
-			if( SystemTickSec()>=START_MONITORING_TIMER_s ) {
+			// タイムアップ→RESUMEに移行
+			if( waiting_timer_s==0 ) {
 				gSystemMode = RESUME;
 				Serial.println("MONITORING Start!" );
 			}
+
+			// ボタンを押されたら残り5秒に移行
+			if( leftBtnStatus==BTN_1CLICK || rightBtnStatus==BTN_1CLICK ) {
+				leftBtnStatus  = BTN_NOTHING;
+				rightBtnStatus = BTN_NOTHING;
+				waiting_timer_s = 5;
+			}
 			break;
 
-		case RESUME: // -- 起動直前。停止からの再開ポイント
+		case RESUME: // -- 起動直前（停止からの再開ポイント）すぐに移行
 			gSystemMode = RUNNING;
-
 			Serial.println("MONITORING Start!" );
 
 			// 振動センサ起動
 			AttachTW2525Interrupt();
+
+			oled.clear();
 			break;
 
-		case RUNNING: // -- 起動完了後の処理（通常ループ）
-			oled.clear();
+		case RUNNING: // -- 通常ループ処理（振動待ち）
 			
+			// WIFIモードの画面
 			if( gSystemMode==WIFI_MODE ) {
-				if( SystemTickSec()%2 )	oled.drawXBitmap( 0, 0, ICON_MONITORING, 128, 64, WHITE );
-			} else {
-				sprintf( s, "monitoring %lu sec", SystemTickSec() );
-				oled.print( 0, 0, ALIGN_LEFT, 1, s );
-				sprintf( s, "batt voltage:%1.2f", GetBattSoc() );
-				oled.print( 0,20, ALIGN_LEFT, 1, s );
+				// 監視中アイコンを点滅表示
+				if( SystemTickSec()%2 )
+					oled.drawXBitmap( 0, 0, ICON_MONITORING, 128, 64, WHITE );
+				else
+					oled.clear();
 			}
+			// DIRECTモードの画面
+			else {
+				if( WaitSec(&oneSecTimer_s, 1) ) {
+					sprintf( s, "past:%lu[s]", SystemTickSec() );
+					oled.print( 0, 0, ALIGN_LEFT, 2, s );
+					sprintf( s, "batt:%1.2f[v]", GetBattSoc() );
+					oled.print( 0,20, ALIGN_LEFT, 2, s );
+				}
+			}
+
 			oled.flush();
 
+			// 振動検出時の対応（検出自体は割り込み処理でgVibrationDetectedフラグで知る）
 			if( gVibrationDetected ) {
 				Serial.println( "Detected!" );
 				gSystemMode = DETECTED;
@@ -200,21 +214,39 @@ void loop( void ) {
 			break;
 
 		case DETECTED: // -- 振動検出後の処理（webで停めるまでずっと）
-			//static int a = 0;
-			//BitmapMatrix88( kXBmp, true );
-			//if( WaitSec( &detected_counter_s, 30 ) ) Talk( (++a % 2)==0?"nusu'nja dame'desuyo'":"shindouwo kenshutu simasita.", false );
+
+			// WIFIモードの表示
+			if( gSystemMode==WIFI_MODE ) {
+				if( SystemTickSec()%2 ) oled.drawXBitmap( 0, 0, ICON_MONITORING, 128, 64, WHITE );
+				else oled.clear();
+			}
+			// DIRECTモードの表示
+			else {
+				if( SystemTickSec()%2 ) oled.drawXBitmap( 0, 0, ICON_MONITORING, 128, 64, WHITE );
+				else oled.clear();
+			}
+
+			if( leftBtnStatus==BTN_1CLICK || rightBtnStatus==BTN_1CLICK ) {
+				leftBtnStatus  = BTN_NOTHING;
+				rightBtnStatus = BTN_NOTHING;
+				waiting_timer_s = 10;
+				gSystemMode = WAITING;
+			}
+
 			break;
 
 		case STOP: // -- 終了～
-			//// 待機中は振動感知しない
-			//detachInterrupt( kVibrationPin );
+			// 待機中は振動感知しない
+			DetachTW2525Interrupt();
 
-			//BitmapMatrix88( kWaitBmp, false );
+			// システム終了的なアイコン表示
+			oled.clear();
+			//oled.drawXBitmap( 0, 0, ICON_MONITORING, 128, 64, WHITE );
+			oled.flush();
 			break;
 
 	} // case
 
-
-
 } // loop
 
+system_timer_sec
