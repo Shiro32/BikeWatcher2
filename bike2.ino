@@ -47,7 +47,6 @@ float gBattSOC;								// バッテリー残量（電圧？）
 
 // -------------------------------------------------------------------------
 // 起動時の初期化関数
-// ESP32の起動時に１回だけ実行される
 // OLED（I2C）、各種GPIO、割り込みハンドラの設定
 void setup( void ) {
 	String ip;
@@ -60,10 +59,10 @@ void setup( void ) {
 		for(;;);
 	}
 
-	oled.clear();               //何か表示されている場合に備えて表示クリア
+	// 起動画面
+	oled.clear();
 	oled.setRotation(2);
-	oled.print( OLED_WIDTH/2, 0, ALIGN_CENTER, 2, "Welcome" );
-	oled.drawXBitmap( 0, 0, ICON_ALERT, 128, 64, WHITE );
+	oled.drawXBitmap( 0, 0, ICON_BA2LOGO, 128, 64, WHITE );
 	oled.flush();
 
 	// ボタンGPIO
@@ -126,7 +125,6 @@ void setup( void ) {
 void loop( void ) {
 	// 各種タイミング計測用カウンタ
 	static uint32_t standby_counter_s = 0;
-	static uint8_t  waiting_timer_s = START_MONITORING_TIMER_s;
 
 	static uint32_t oneSecTimer_s = 0;
 	static uint32_t detected_counter_s = 0;
@@ -155,12 +153,13 @@ void loop( void ) {
 			DetachTW2525Interrupt();
 			
 			// 準備中のカウントダウン
-			sprintf( s, "%d", --waiting_timer_s );
+			sprintf( s, "%lu", START_MONITORING_TIMER_s - SystemTickSec() );
+			oled.clear();
 			oled.print( OLED_WIDTH/2, 0, ALIGN_CENTER, 5, s );
 			oled.flush();
 
 			// タイムアップ→RESUMEに移行
-			if( waiting_timer_s==0 ) {
+			if( SystemTickSec()>=START_MONITORING_TIMER_s ) {
 				gSystemMode = RESUME;
 				Serial.println("MONITORING Start!" );
 			}
@@ -169,7 +168,7 @@ void loop( void ) {
 			if( leftBtnStatus==BTN_1CLICK || rightBtnStatus==BTN_1CLICK ) {
 				leftBtnStatus  = BTN_NOTHING;
 				rightBtnStatus = BTN_NOTHING;
-				waiting_timer_s = 5;
+				SetSystemTickSec( START_MONITORING_TIMER_s-5 );
 			}
 			break;
 
@@ -185,8 +184,8 @@ void loop( void ) {
 
 		case RUNNING: // -- 通常ループ処理（振動待ち）
 			
-			// WIFIモードの画面
-			if( gSystemMode==WIFI_MODE ) {
+			// WIFIモードの画面（親機も自転車にある）
+			if( gCommMode==WIFI_MODE ) {
 				// 監視中アイコンを点滅表示
 				if( SystemTickSec()%2 )
 					oled.drawXBitmap( 0, 0, ICON_MONITORING, 128, 64, WHITE );
@@ -196,10 +195,10 @@ void loop( void ) {
 			// DIRECTモードの画面
 			else {
 				if( WaitSec(&oneSecTimer_s, 1) ) {
-					sprintf( s, "past:%lu[s]", SystemTickSec() );
-					oled.print( 0, 0, ALIGN_LEFT, 2, s );
-					sprintf( s, "batt:%1.2f[v]", GetBattSoc() );
-					oled.print( 0,20, ALIGN_LEFT, 2, s );
+					sprintf( s, "PAST:%lus", SystemTickSec() );
+					oled.print( 0,10, ALIGN_LEFT, 2, s );
+					sprintf( s, "BATT:%1.1fV", GetBattSoc() );
+					oled.print( 0,40, ALIGN_LEFT, 2, s );
 				}
 			}
 
@@ -215,8 +214,8 @@ void loop( void ) {
 
 		case DETECTED: // -- 振動検出後の処理（webで停めるまでずっと）
 
-			// WIFIモードの表示
-			if( gSystemMode==WIFI_MODE ) {
+			// WIFIモードの表示（親機も自転車にある）
+			if( gCommMode==WIFI_MODE ) {
 				if( SystemTickSec()%2 ) oled.drawXBitmap( 0, 0, ICON_MONITORING, 128, 64, WHITE );
 				else oled.clear();
 			}
@@ -225,11 +224,12 @@ void loop( void ) {
 				if( SystemTickSec()%2 ) oled.drawXBitmap( 0, 0, ICON_MONITORING, 128, 64, WHITE );
 				else oled.clear();
 			}
+			oled.flush();
 
 			if( leftBtnStatus==BTN_1CLICK || rightBtnStatus==BTN_1CLICK ) {
 				leftBtnStatus  = BTN_NOTHING;
 				rightBtnStatus = BTN_NOTHING;
-				waiting_timer_s = 10;
+				SetSystemTickSec(10);
 				gSystemMode = WAITING;
 			}
 
@@ -248,5 +248,3 @@ void loop( void ) {
 	} // case
 
 } // loop
-
-system_timer_sec

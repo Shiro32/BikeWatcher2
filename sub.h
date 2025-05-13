@@ -25,6 +25,7 @@ void onShakeHandler();
 bool WaitSec( uint32_t*, uint8_t );
 void CountSystemTickSec( void );
 uint32_t SystemTickSec( void );
+void SetSystemTickSec( uint32_t t );
 
 void SetupCloud( uint16_t );
 void SendLineNotify(char *str);

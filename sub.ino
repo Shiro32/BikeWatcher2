@@ -78,6 +78,10 @@ void SetupButtons( void ) {
 void AttachTW2525Interrupt( void ) {
 	gVibrationDetected = false;
 
+	pinMode( GPIO_TW2525_D1, INPUT_PULLDOWN );
+	pinMode( GPIO_TW2525_D2, INPUT_PULLDOWN );
+	pinMode( GPIO_TW2525_D4, INPUT_PULLDOWN );
+
 	attachInterrupt( GPIO_TW2525_D1, onShakeHandler, CHANGE );
 	attachInterrupt( GPIO_TW2525_D2, onShakeHandler, CHANGE );
 	attachInterrupt( GPIO_TW2525_D4, onShakeHandler, CHANGE );
@@ -327,9 +331,14 @@ bool WaitSec( uint32_t* prev, uint8_t timer_s ) {
 void CountSystemTickSec( void ) {
 	gSystemTick_s++;
 }
+void SetSystemTickSec( uint32_t t ) {
+	gSystemTick_s = t;
+}
 uint32_t SystemTickSec( void ) {
 	return( gSystemTick_s );
 }
+
+
 
 // -------------------------------------------------------------------------
 // LINEへの通知発信（いつもの奴）
