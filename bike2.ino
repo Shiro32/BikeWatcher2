@@ -135,7 +135,7 @@ void loop( void ) {
 	// WiFiモード時のネットワーク関係処理（DIRECTモードでは特段の処理不要）
 	if( gCommMode==WIFI_MODE ) {
 		// OTA処理
-		ArduinoOTA.handle();
+		//ArduinoOTA.handle();	// setupの中でやっているのでやめる（バッテリー対策）
 
 		// 5秒に１回、WiFiチェック。切断時は自動リトライ
 		if( WaitSec(&wifi_counter_s, 5) ) ConnectWiFi();
@@ -155,7 +155,7 @@ void loop( void ) {
 			// 準備中のカウントダウン
 			sprintf( s, "%lu", START_MONITORING_TIMER_s - SystemTickSec() );
 			oled.clear();
-			oled.print( OLED_WIDTH/2, 0, ALIGN_CENTER, 5, s );
+			oled.print( OLED_WIDTH/2, 10, ALIGN_CENTER, 5, s );
 			oled.flush();
 
 			// タイムアップ→RESUMEに移行
@@ -166,6 +166,7 @@ void loop( void ) {
 
 			// ボタンを押されたら残り5秒に移行
 			if( leftBtnStatus==BTN_1CLICK || rightBtnStatus==BTN_1CLICK ) {
+				delay(500);
 				leftBtnStatus  = BTN_NOTHING;
 				rightBtnStatus = BTN_NOTHING;
 				SetSystemTickSec( START_MONITORING_TIMER_s-5 );
@@ -208,28 +209,29 @@ void loop( void ) {
 			if( gVibrationDetected ) {
 				Serial.println( "Detected!" );
 				gSystemMode = DETECTED;
-				SendLineNotify("振動検出！すぐ自転車に戻りましょう！");
+				if( gCommMode==WIFI_MODE ) SendLineNotify("振動検出！すぐ自転車に戻りましょう！");
 			}
 			break;
 
 		case DETECTED: // -- 振動検出後の処理（webで停めるまでずっと）
 
+			oled.clear();
 			// WIFIモードの表示（親機も自転車にある）
 			if( gCommMode==WIFI_MODE ) {
-				if( SystemTickSec()%2 ) oled.drawXBitmap( 0, 0, ICON_MONITORING, 128, 64, WHITE );
-				else oled.clear();
+				if( SystemTickSec()%2 ) oled.drawXBitmap( 0, 0, ICON_ALERT, 128, 64, WHITE );
 			}
 			// DIRECTモードの表示
 			else {
-				if( SystemTickSec()%2 ) oled.drawXBitmap( 0, 0, ICON_MONITORING, 128, 64, WHITE );
-				else oled.clear();
+				if( SystemTickSec()%2 ) oled.drawXBitmap( 0, 0, ICON_ALERT2, 128, 64, WHITE );
 			}
 			oled.flush();
 
+
 			if( leftBtnStatus==BTN_1CLICK || rightBtnStatus==BTN_1CLICK ) {
+				delay(500);
 				leftBtnStatus  = BTN_NOTHING;
 				rightBtnStatus = BTN_NOTHING;
-				SetSystemTickSec(10);
+				SetSystemTickSec(0);
 				gSystemMode = WAITING;
 			}
 

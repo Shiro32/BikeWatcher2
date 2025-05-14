@@ -15,13 +15,14 @@
 WiFiMulti wifi_multi;
 WiFiClient wifi_client;
 
-volatile BTN_STATUS rightBtnStatus, leftBtnStatus;
-uint32_t rightBtnTick, leftBtnTick;
+volatile uint32_t rightBtnTick, leftBtnTick;
+
+volatile BTN_STATUS leftBtnStatus=BTN_NOTHING, rightBtnStatus=BTN_NOTHING;
 
 // 震動検知通知用（割り込みのvolatile変数）
 volatile bool gVibrationDetected=false;
 
-uint32_t gSystemTick_s=0;
+volatile uint32_t gSystemTick_s=0;
 
 // -------------------------------------------------------------------------
 // プッシュボタン関係
@@ -131,12 +132,12 @@ void SelectCommMode( void ) {
 	oled.print( OLED_WIDTH/2, 30, ALIGN_CENTER, 2, gCommMode==DIRECT_MODE?"DIRECT":"WIFI" );
 	oled.flush();
 
-	leftBtnStatus  = BTN_NOTHING;
-	rightBtnStatus = BTN_NOTHING;
-
 	delay(2000);
 	oled.clear();
 	oled.flush();
+
+	leftBtnStatus  = BTN_NOTHING;
+	rightBtnStatus = BTN_NOTHING;
 
 }
 

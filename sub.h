@@ -35,6 +35,8 @@ void DetachTW2525Interrupt( void );
 
 extern volatile bool gVibrationDetected;
 
+typedef enum { BTN_NOTHING, BTN_PRESSING, BTN_1CLICK, BTN_LONGPRESS } BTN_STATUS;
+extern volatile BTN_STATUS rightBtnStatus, leftBtnStatus;
 
 const char* SSID1	= "Shiro-iPhone";
 const char* PSWD1	= "hogehoge";
