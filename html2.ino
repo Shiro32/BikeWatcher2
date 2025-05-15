@@ -31,7 +31,7 @@ void InitServer( void ) {
 void HandleStopAlarm( void ) {
 	String html;
 
-	gSystemMode = RESUME;
+	gSystemMode = WAIT_SHORT;
 	gVibrationDetected = false;	// 振動スイッチハンドラでTrueになり、ここでオフにする
 
 	Serial.println("警報停止！！" );
@@ -60,7 +60,7 @@ void HandleStopAlarm( void ) {
 void HandleStart( void ) {
 	String html;
 
-	gSystemMode = RESUME;	// これだけでシステム再起動できる
+	gSystemMode = WAIT_STD;	// これだけでシステム再起動できる
 	//Talk( "kan'siwo kai'sisimasita.", true );
 	SendLineNotify( "自転車の監視を開始しました！" );
 

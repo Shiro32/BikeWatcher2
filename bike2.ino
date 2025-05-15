@@ -104,24 +104,9 @@ void setup( void ) {
 	// 操作用ボタン初期化
 	SetupButtons();
 
-	// システムタイマ起動（100万マイクロ秒＝１秒）
-	//TimerLib.setInterval_us( CountSystemTickSec, 1000000 );
-
 	oled.clear();
-
 	gSystemMode = WAIT_STD;
 }
-
-
-uint16_t gStandbyCounter = 100;	// システム起動時の待ち時間
-
-// -------------------------------------------------------------------------
-// 監視開始時のタイマーを任意で設定する
-void StartMonitoring( uint16_t t=START_MONITORING_TIMER_s ) {
-	gStandbyCounter = t;
-	gSystemMode = WAITING;
-}
-
 
 // -------------------------------------------------------------------------
 // メインルーチン
@@ -131,8 +116,13 @@ void loop( void ) {
 	// 各種タイミング計測用カウンタ
 	static uint32_t oneSecTimer_s = 0;			// １秒をWaitSecで作るカウンタ
 	static uint32_t standbyCounter_s = 0;		
+	static uint32_t wifi_counter_s = 0;
+
+	static uint16_t waitTimerLimit_s = 0, waitTimerBegin_s = 0;
 
 	char s[80];
+
+	delay(200);
 
 	// 1秒ごとのシステムtickをカウントUPする（タイマ割込みだとハングするので）
 	if( WaitSec( &oneSecTimer_s, 1) ) CountSystemTickSec();
@@ -152,12 +142,14 @@ void loop( void ) {
 	switch( gSystemMode ) {
 
 		case WAIT_SHORT:
-			gStandbyCounter = 5;
+			waitTimerLimit_s = 5;
+			waitTimerBegin_s = SystemTickSec();
 			gSystemMode = WAITING;
 			break;
 
 		case WAIT_STD:
-			gStandbyCounter = START_MONITORING_TIMER_s;
+			waitTimerLimit_s = START_MONITORING_TIMER_s;
+			waitTimerBegin_s = SystemTickSec();
 			gSystemMode = WAITING;
 			break;
 
@@ -166,23 +158,23 @@ void loop( void ) {
 			DetachTW2525Interrupt();
 			
 			// 準備中のカウントダウン
-			sprintf( s, "%u", gStandbyCounter-- );
+			sprintf( s, "%u", waitTimerLimit_s-(SystemTickSec()-waitTimerBegin_s) );
 			oled.clear();
 			oled.print( OLED_WIDTH/2, 10, ALIGN_CENTER, 5, s );
 			oled.flush();
 
-			// タイムアップ→RESUMEに移行
-			if( gStandbyCounter<=0 ) {
-				gSystemMode = RESUME;
-				Serial.println("MONITORING Start!" );
-			}
-
 			// ボタンを押されたら残り5秒に移行
 			if( leftBtnStatus==BTN_1CLICK || rightBtnStatus==BTN_1CLICK ) {
-//				delay(500);
 				leftBtnStatus  = BTN_NOTHING;
 				rightBtnStatus = BTN_NOTHING;
 				gSystemMode = WAIT_SHORT;
+				break;
+			}
+
+			// タイムアップ→RESUMEに移行
+			if( SystemTickSec()-waitTimerBegin_s >= waitTimerLimit_s ) {
+				gSystemMode = RESUME;
+				Serial.println("MONITORING Start!" );
 			}
 			break;
 
@@ -208,9 +200,9 @@ void loop( void ) {
 			}
 			// DIRECTモードの画面
 			else {
-				if( WaitSec(&oneSecTimer_s, 1) ) {
-					sprintf( s, "PAST:%lus", SystemTickSec() );
-					oled.print( 0,10, ALIGN_LEFT, 2, s );
+				sprintf( s, "PAST:%lus", SystemTickSec() );
+				oled.print( 0,10, ALIGN_LEFT, 2, s );
+				if( SystemTickSec()%5==0 ) {
 					sprintf( s, "BATT:%1.1fV", GetBattSoc() );
 					oled.print( 0,40, ALIGN_LEFT, 2, s );
 				}
@@ -232,18 +224,17 @@ void loop( void ) {
 			// WIFIモードの表示（親機も自転車にある）
 			if( gCommMode==WIFI_MODE ) {
 				if( SystemTickSec()%2 ) {
-					oled.drawXBitmap( 0, 0, (SystemTickSec()%4?ICON_ALER, 128, 64, WHITE );
+					oled.drawXBitmap( 0, 0, (SystemTickSec()%10<5)?ICON_ALERT:ICON_ALERT2, 128, 64, WHITE );
 				}
 			}
 			// DIRECTモードの表示
 			else {
-				if( SystemTickSec()%2 ) oled.drawXBitmap( 0, 0, ICON_ALERT2, 128, 64, WHITE );
+				if( SystemTickSec()%2 ) oled.drawXBitmap( 0, 0, ICON_ALERT, 128, 64, WHITE );
 			}
 			oled.flush();
 
 
 			if( leftBtnStatus==BTN_1CLICK || rightBtnStatus==BTN_1CLICK ) {
-				//delay(500);
 				leftBtnStatus  = BTN_NOTHING;
 				rightBtnStatus = BTN_NOTHING;
 				gSystemMode = WAIT_SHORT;

@@ -8,7 +8,6 @@
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 #include <uTimerLib.h>
-#include <Ambient.h>
 
 #include "sub.h"
 
@@ -336,9 +335,6 @@ bool WaitSec( uint32_t* prev, uint8_t timer_s ) {
 
 void CountSystemTickSec( void ) {
 	gSystemTick_s++;
-}
-void SetSystemTickSec( uint32_t t ) {
-	gSystemTick_s = t;
 }
 uint32_t SystemTickSec( void ) {
 	return( gSystemTick_s );
