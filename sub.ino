@@ -82,9 +82,9 @@ void AttachTW2525Interrupt( void ) {
 	pinMode( GPIO_TW2525_D2, INPUT_PULLDOWN );
 	pinMode( GPIO_TW2525_D4, INPUT_PULLDOWN );
 
-	attachInterrupt( GPIO_TW2525_D1, onShakeHandler, CHANGE );
-	attachInterrupt( GPIO_TW2525_D2, onShakeHandler, CHANGE );
-	attachInterrupt( GPIO_TW2525_D4, onShakeHandler, CHANGE );
+	attachInterrupt( GPIO_TW2525_D1, TW2525Handler, CHANGE );
+	attachInterrupt( GPIO_TW2525_D2, TW2525Handler, CHANGE );
+	attachInterrupt( GPIO_TW2525_D4, TW2525Handler, CHANGE );
 }
 
 void DetachTW2525Interrupt( void ) {
@@ -97,7 +97,7 @@ void DetachTW2525Interrupt( void ) {
 // 揺れを検出した際の処理ハンドラ（割り込みで呼ばれる）
 // 割り込み処理はさっさと早く終わらせたいので、フラグだけ立てて終了
 // 高速処理が必要とかで、内部RAMに置くための特別の宣言が必要
-void IRAM_ATTR onShakeHandler( void ) {
+void IRAM_ATTR TW2525Handler( void ) {
 	gVibrationDetected = 0;
 
 	if( digitalRead(GPIO_TW2525_D1)==LOW ) gVibrationDetected += 1;
@@ -108,8 +108,6 @@ void IRAM_ATTR onShakeHandler( void ) {
 
 	//gVibrationDetected = true;
 }
-
-
 
 // -------------------------------------------------------------------------
 // 通信方式選択
