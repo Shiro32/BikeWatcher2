@@ -98,7 +98,15 @@ void DetachTW2525Interrupt( void ) {
 // 割り込み処理はさっさと早く終わらせたいので、フラグだけ立てて終了
 // 高速処理が必要とかで、内部RAMに置くための特別の宣言が必要
 void IRAM_ATTR onShakeHandler( void ) {
-	gVibrationDetected = true;
+	gVibrationDetected = 0;
+
+	if( digitalRead(GPIO_TW2525_D1)==LOW ) gVibrationDetected += 1;
+	if( digitalRead(GPIO_TW2525_D2)==LOW ) gVibrationDetected += 2;
+	if( digitalRead(GPIO_TW2525_D4)==LOW ) gVibrationDetected += 4;
+
+	if( gVibrationDetected==0 ) gVibrationDetected = 9;
+
+	//gVibrationDetected = true;
 }
 
 
