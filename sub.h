@@ -20,7 +20,7 @@ void ConnectWiFi( void );
 void SetupOTA( void );
 void SetupBattSOC( void );
 float GetBattSoc( void );
-void onShakeHandler();
+void TW2525Handler( void );
 
 bool WaitSec( uint32_t*, uint8_t );
 void CountSystemTickSec( void );

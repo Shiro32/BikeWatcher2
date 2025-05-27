@@ -20,7 +20,6 @@
 #include <WifiMulti.h>
 #include <WiFiClientSecure.h>
 #include <ArduinoOTA.h>
-
 #include <WebServer.h>
 
 // for OLED Display
@@ -196,7 +195,7 @@ void loop( void ) {
 			sprintf( s, "PAST:%lus", SystemTickSec() );
 			oled.print( 0,10, ALIGN_LEFT, 2, s );
 
-			if( WaitSec(&displayUpdateTimer, 5) ) {
+			if( WaitSec(&displayUpdateTimer_s, 5) ) {
 				sprintf( s, "BATT:%1.1fV", GetBattSoc() );
 				oled.print( 0,40, ALIGN_LEFT, 2, s );
 			}
