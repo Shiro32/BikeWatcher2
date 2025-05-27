@@ -210,7 +210,7 @@ void loop( void ) {
 		}
 
 		// 振動検出時の対応（検出自体は割り込み処理でgVibrationDetectedフラグで知る）
-		if( gVibrationDetected ) {
+		if( gVibrationDetected!=0 ) {
 			Serial.println( "Detected!" );
 			gSystemMode = DETECTED;
 			if( gCommMode==WIFI_MODE ) SendLineNotify("振動検出！すぐ自転車に戻りましょう！");
@@ -222,7 +222,7 @@ void loop( void ) {
 			delay(3000);
 
 			// 振動検出をクリアして次の発生に備える
-			gVibrationDetected = false;
+			gVibrationDetected = 0;
 		}
 		break;
 

@@ -19,7 +19,7 @@ volatile uint32_t rightBtnTick, leftBtnTick;
 volatile BTN_STATUS leftBtnStatus=BTN_NOTHING, rightBtnStatus=BTN_NOTHING;
 
 // 震動検知通知用（割り込みのvolatile変数）
-volatile bool gVibrationDetected=false;
+volatile uint8_t gVibrationDetected=0;
 
 volatile uint32_t gSystemTick_s=0;
 
@@ -76,7 +76,7 @@ void SetupButtons( void ) {
 // -------------------------------------------------------------------------
 // TW2525A関係（振動通知）
 void AttachTW2525Interrupt( void ) {
-	gVibrationDetected = false;
+	gVibrationDetected = 0;
 
 	pinMode( GPIO_TW2525_D1, INPUT_PULLDOWN );
 	pinMode( GPIO_TW2525_D2, INPUT_PULLDOWN );
@@ -104,8 +104,8 @@ void IRAM_ATTR TW2525Handler( void ) {
 	if( digitalRead(GPIO_TW2525_D2)==LOW ) gVibrationDetected += 2;
 	if( digitalRead(GPIO_TW2525_D4)==LOW ) gVibrationDetected += 4;
 
-	// TODO: これ何の処理だ！？
-	if( gVibrationDetected==0 ) gVibrationDetected = 9;
+	// TODO: これ何の処理だ！？　９の意味が分からない・・・。
+	// if( gVibrationDetected==0 ) gVibrationDetected = 9;
 }
 
 // -------------------------------------------------------------------------
