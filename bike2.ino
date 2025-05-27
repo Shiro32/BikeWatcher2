@@ -202,6 +202,13 @@ void loop( void ) {
 		}
 		oled.flush();
 
+		// ボタンを押された時の処理
+		// 現状でやることはないが、処理しておかないとバッファにたまってしまう
+		if( leftBtnStatus!=BTN_NOTHING && rightBtnStatus!=BTN_NOTHING ) {
+			leftBtnStatus  = BTN_NOTHING;
+			rightBtnStatus = BTN_NOTHING;
+		}
+
 		// 振動検出時の対応（検出自体は割り込み処理でgVibrationDetectedフラグで知る）
 		if( gVibrationDetected ) {
 			Serial.println( "Detected!" );
