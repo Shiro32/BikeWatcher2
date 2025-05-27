@@ -104,9 +104,8 @@ void IRAM_ATTR TW2525Handler( void ) {
 	if( digitalRead(GPIO_TW2525_D2)==LOW ) gVibrationDetected += 2;
 	if( digitalRead(GPIO_TW2525_D4)==LOW ) gVibrationDetected += 4;
 
+	// TODO: これ何の処理だ！？
 	if( gVibrationDetected==0 ) gVibrationDetected = 9;
-
-	//gVibrationDetected = true;
 }
 
 // -------------------------------------------------------------------------
